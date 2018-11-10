@@ -94,7 +94,42 @@ namespace MigsPayments.Helpers
             var HashValue = hasher.ComputeHash(Encoding.ASCII.GetBytes(RawData));
             return string.Join("", HashValue.Select(b => b.ToString("x2"))).ToUpper();
         }
+        public static string CreateSHA256Signature(SortedList<string, string> list)
+        {
+            // Hex Decode the Secure Secret for use in using the HMACSHA256 hasher
+            // hex decoding eliminates this source of error as it is independent of the character encoding
+            // hex decoding is precise in converting to a byte array and is the preferred form for representing binary values as hex strings. 
+            string _secureSecret = "41F2DB75DA2D0CB45446F12B9D1E6783";
+            byte[] convertedHash = new byte[_secureSecret.Length / 2];
+            for (int i = 0; i < _secureSecret.Length / 2; i++)
+            {
+                convertedHash[i] = (byte)Int32.Parse(_secureSecret.Substring(i * 2, 2), System.Globalization.NumberStyles.HexNumber);
+            }
 
+            // Build string from collection in preperation to be hashed
+            StringBuilder sb = new StringBuilder();
+
+            //SortedList<String, String> list = (useRequest ? _requestFields : _responseFields);
+            foreach (KeyValuePair<string, string> kvp in list)
+            {
+                if (kvp.Key.StartsWith("vpc_") || kvp.Key.StartsWith("user_"))
+                    sb.Append(kvp.Key + "=" + kvp.Value + "&");
+            }
+            //remove trailing &from string
+            if (sb.Length > 0)
+                sb.Remove(sb.Length - 1, 1);
+            // Create secureHash on string
+            string hexHash = "";
+            using (System.Security.Cryptography.HMACSHA256 hasher = new System.Security.Cryptography.HMACSHA256(convertedHash))
+            {
+                byte[] hashValue = hasher.ComputeHash(Encoding.UTF8.GetBytes(sb.ToString()));
+                foreach (byte b in hashValue)
+                {
+                    hexHash += b.ToString("X2");
+                }
+            }
+            return hexHash;
+        }
 
     }
 
